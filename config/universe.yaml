@@ -1,0 +1,30 @@
+# config/universe.yaml
+start: "2015-01-01"
+equities:
+  # recent splits: likely adjustment errors
+  - NVDA   # 4:1 2021, 10:1 2024
+  - AAPL   # 4:1 2020
+  - TSLA   # 5:1 2020, 3:1 2022
+  - AMZN   # 20:1 2022
+  - GOOGL  # 20:1 2022
+  - WMT    # 3:1 2024
+  - CMG    # 50:1 2024
+  - AVGO   # 10:1 2024
+  # ticker change
+  - META   # was FB until 2022
+  # stable large caps as a control group
+  - MSFT
+  - JPM
+  - XOM
+  - JNJ
+  - PG
+  - KO
+  - V
+  - HD
+  - UNH
+  - PEP
+  - COST
+crypto:
+  binance: [BTCUSDT, ETHUSDT]
+  coinbase: [BTC-USD, ETH-USD]
+  kraken: [XBTUSD, ETHUSD]
