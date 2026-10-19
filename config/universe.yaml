@@ -36,3 +36,5 @@ price_basis:
   yfinance: split_adjusted
   tiingo: raw
   stooq: split_and_dividend_adjusted
+cik_overrides:
+  XOM: ["0000034088", "0002115436"]
