@@ -2,7 +2,7 @@
 
 **dq-lab** pulls the same stock, crypto and SEC filing data from several sources, checks it systematically, and measures what the errors do to real research results.
 
-**[Read the full report and findings →](https://YOUR-SITE.netlify.app)**
+**[Read the full report and findings →](https://chimerical-malabi-e8dd89.netlify.app)**
 
 ---
 
