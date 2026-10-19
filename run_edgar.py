@@ -19,8 +19,8 @@ for sym in cfg["equities"]:
             print("FAIL", sym, "no CIK found in SEC ticker map")
             continue
         try:
-            fetch_filings(sym, cik)
-            print("OK  ", sym, cik)
+            name = fetch_filings(sym, cik)
+            print("OK  ", sym, cik, name)
         except Exception as e:
             print("FAIL", sym, cik, e)
         time.sleep(0.5)

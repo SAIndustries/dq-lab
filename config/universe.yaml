@@ -37,4 +37,15 @@ price_basis:
   tiingo: raw
   stooq: split_and_dividend_adjusted
 cik_overrides:
-  XOM: ["0000034088", "0002115436"]
+  XOM:   ["0000034088", "0002115436"]
+  AVGO:  ["0001441634", "0001649338", "0001730168"]
+  GOOGL: ["0001288776", "0001652044"]
+release_overrides:
+  "0000320193-19-000002": preannouncement   # AAPL: Tim Cook letter, Jan 2019
+  "0001193125-18-026500": preannouncement   # AVGO: narrows Q1 FY18 guidance
+  "0001045810-19-000004": preannouncement   # NVDA: guidance update, Jan 2019
+  "0001045810-22-000133": preannouncement   # NVDA: preliminary Q2 FY23 results
+  "0001652044-23-000034": other             # GOOGL: reporting/disclosure update
+  "0000200406-23-000091": other             # JNJ: updated financials post-Kenvue
+extra_earnings_filings:
+  - "0001058090-16-000078"   # CMG Q2 2016 results; filed with item 9.01 only, no 2.02

@@ -32,3 +32,15 @@ with pl.Config(tbl_rows=25):
 with pl.Config(fmt_str_lengths=120):
     print(t.sort("n_words").select("symbol", "filing_date", "doc_type", "n_words",
                                    pl.col("text").str.slice(0, 120)).head(8))
+
+# 6. Unusual exhibit types and non-earnings-like texts
+odd = kw.filter(~pl.col("doc_type").is_in(["EX-99.1", "EX-99", "EX-99.01"])
+                | ~pl.col("earnings_like"))
+with pl.Config(tbl_rows=40, fmt_str_lengths=110):
+    print(odd.select("symbol", "filing_date", "doc_type", "filename", "n_words",
+                     pl.col("text").str.slice(0, 110)).sort("symbol", "filing_date"))
+
+# 7. Company-years with more or fewer than 4 releases
+yr = kw.group_by("symbol", pl.col("filing_date").dt.year().alias("year")).len()
+with pl.Config(tbl_rows=40):
+    print(yr.filter(pl.col("len") != 4).sort("symbol", "year"))

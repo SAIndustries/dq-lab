@@ -37,3 +37,5 @@ def fetch_filings(sym, cik):
 
     # One file per (symbol, CIK) so multiple CIKs for a ticker don't overwrite.
     save_raw(df, "edgar", f"{sym}_{cik}", f"{BASE}CIK{cik}.json")
+
+    return sub.get("name")

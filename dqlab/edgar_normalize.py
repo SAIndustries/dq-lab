@@ -41,8 +41,10 @@ def add_acceptance_times(f):
 
     The submissions API's acceptanceDateTime follows one of two conventions
     per CIK: genuine UTC, or Eastern Time with the UTC offset applied twice.
-    Header ACCEPTANCE-DATETIME (Eastern Time) is ground truth; where it is
-    missing, the CIK's convention (learned from its other filings) is used.
+    Header ACCEPTANCE-DATETIME (Eastern Time) is ground truth. Where it is
+    missing, the CIK's convention, learned from its other filings, is used.
+    If a CIK has no header evidence at all, the timestamp is left null:
+    never guessed.
     """
     hd = pl.read_parquet(HDR).select(
         "accession",
@@ -71,14 +73,24 @@ def add_acceptance_times(f):
         print("WARNING: CIKs with mixed timestamp conventions:")
         print(mixed)
 
+    # CIKs with no header evidence at all cannot have their convention inferred
+    no_evidence = (f.select("cik").unique()
+                    .join(conv.select("cik"), on="cik", how="anti"))
+    if no_evidence.height:
+        print("WARNING: CIKs with no header timestamps (run edgar_headers again):")
+        print(no_evidence)
+
     f = f.join(conv.select("cik", "cik_true_utc"), on="cik", how="left")
 
-    # Header time where available; otherwise infer from the CIK's convention
+    # Header time where available; otherwise the CIK's learned convention;
+    # if the convention is unknown, the timestamp stays null.
     f = f.with_columns(
         pl.when(pl.col("acceptance_et").is_not_null()).then(pl.lit("header"))
-          .otherwise(pl.lit("api_inferred")).alias("acceptance_source"),
+          .when(pl.col("cik_true_utc").is_not_null()).then(pl.lit("api_inferred"))
+          .otherwise(pl.lit("missing")).alias("acceptance_source"),
         pl.coalesce("acceptance_et",
-                    pl.when(pl.col("cik_true_utc")).then(h1).otherwise(h3))
+                    pl.when(pl.col("cik_true_utc")).then(h1)
+                      .when(~pl.col("cik_true_utc")).then(h3))   # unknown CIK -> stays null
           .alias("acceptance_et"),
     ).with_columns(
         pl.col("acceptance_et").dt.convert_time_zone("UTC").alias("acceptance_utc"))
@@ -94,14 +106,14 @@ def run():
         print(f.group_by("acceptance_source").len().sort("acceptance_source"))
         missing = f["acceptance_et"].null_count()
         if missing:
-            print(f"WARNING: {missing} filing(s) still without a timestamp")
+            print(f"WARNING: {missing} filing(s) without a timestamp")
     else:
         print("NOTE: no header timestamps yet; run `python -m dqlab.ingest.edgar_headers`")
 
     OUT.mkdir(parents=True, exist_ok=True)
     f.write_parquet(OUT / "filings.parquet")
 
-    with pl.Config(tbl_rows=25):
+    with pl.Config(tbl_rows=30):
         print(f.group_by("symbol", "cik").len().sort("symbol", "cik"))
 
 
