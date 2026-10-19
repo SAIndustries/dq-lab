@@ -45,15 +45,16 @@ def check_zero_volume(b):
     return issues(bad, "zero_volume", "medium", pl.format("volume={}", "volume"))
 
 def check_stale(b, min_run=3):
+    cols = ["open", "high", "low", "close", "volume"]
     s = b.sort(*KEYS, "date").with_columns(
-        (pl.col("close") != pl.col("close").shift(1)).over(KEYS)
+        pl.any_horizontal([pl.col(c) != pl.col(c).shift(1).over(KEYS) for c in cols])
           .fill_null(True).alias("chg"))
     s = s.with_columns(pl.col("chg").cum_sum().over(KEYS).alias("run_id"))
     runs = (s.group_by(*KEYS, "run_id")
              .agg(pl.col("date").min(), pl.len().alias("n"), pl.col("close").first())
              .filter(pl.col("n") >= min_run))
     return issues(runs, "stale_price", "medium",
-                  pl.format("close {} unchanged for {} rows", "close", "n"))
+                  pl.format("OHLCV unchanged for {} rows (close {})", "n", "close"))
 
 def check_calendar(b):
     missing, extra = [], []
@@ -137,6 +138,38 @@ def check_coverage(b):
         pl.lit(None, dtype=pl.Date).alias("date"))
     return issues(miss, "missing_symbol", "high", pl.lit("symbol absent from vendor"))
 
+def check_dividend_amounts(b, ref="tiingo", tol=0.05):
+    eq = b.filter(~pl.col("vendor").is_in(CRYPTO))
+    ref_df = eq.filter((pl.col("vendor") == ref) & (pl.col("dividend") > 0)).select(
+        "symbol", "date", pl.col("dividend").alias("div_ref"), pl.col("close").alias("close_ref"))
+    m = (eq.filter((pl.col("vendor") != ref) & (pl.col("dividend") > 0))
+           .join(ref_df, on=["symbol", "date"])
+           .with_columns((pl.col("dividend") * pl.col("close_ref") / pl.col("close")
+                          / pl.col("div_ref")).alias("div_ratio")))
+    bad = m.filter((pl.col("div_ratio") - 1).abs() > tol)
+    return issues(bad, "dividend_amount_mismatch", "high",
+                  pl.format("vendor div={} ref div={} ratio={}", "dividend", "div_ref",
+                            pl.col("div_ratio").round(2)))
+
+def check_dividend_adjustment(b, ref="tiingo", tol=0.1):
+    px = b.filter(~pl.col("vendor").is_in(CRYPTO)).with_columns(
+        pl.coalesce("adj_close", "close").alias("px"))
+    r = with_returns(px, "px").with_columns(
+        pl.col("close").shift(1).over(KEYS).alias("prev_close"))
+    ref_df = r.filter((pl.col("vendor") == ref) & (pl.col("dividend") > 0)).select(
+        "symbol", "date", pl.col("ret").alias("ret_ref"),
+        (pl.col("dividend") / pl.col("prev_close")).alias("div_yield"))
+    m = (r.filter(pl.col("vendor") != ref).select("vendor", "symbol", "date", "ret")
+          .join(ref_df, on=["symbol", "date"])
+          .with_columns(((pl.col("ret") - pl.col("ret_ref")) / pl.col("div_yield")).alias("ratio")))
+    detail = pl.format("gap/yield={} yield={}", pl.col("ratio").round(2), pl.col("div_yield").round(4))
+    return pl.concat([
+        issues(m.filter((pl.col("ratio") + 1).abs() < tol),
+               "missed_dividend_adjustment", "high", detail),
+        issues(m.filter((pl.col("ratio") - 1).abs() < tol),
+               "double_dividend_adjustment", "high", detail),
+    ])
+
 # ---------- runner ----------
 def run():
     b = pl.read_parquet(BARS).filter(pl.col("date") >= START)
@@ -144,7 +177,7 @@ def run():
     all_issues = pl.concat([
         check_duplicates(b), check_ohlc(b), check_zero_volume(b), check_stale(b),
         check_calendar(b), check_return_outliers(b), split_issues,
-        check_cross_vendor(b), check_cross_exchange(b), check_coverage(b),
+        check_cross_vendor(b), check_cross_exchange(b), check_coverage(b), check_dividend_amounts(b), check_dividend_adjustment(b),
     ])
     OUT.mkdir(parents=True, exist_ok=True)
     all_issues.write_parquet(OUT / "issues.parquet")
@@ -153,6 +186,8 @@ def run():
         print(all_issues.group_by("check", "vendor").agg(pl.len().alias("n"))
                         .sort("check", "vendor"))
         print(split_table.sort("symbol", "date", "vendor"))
+
+
 
 if __name__ == "__main__":
     run()
