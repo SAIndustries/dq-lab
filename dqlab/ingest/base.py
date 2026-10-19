@@ -17,6 +17,8 @@ def get_json(url, params=None, retries=4):
     r.raise_for_status()
 
 def save_raw(df, vendor, symbol, source=""):
+    if len(df) == 0:
+        raise ValueError(f"{vendor}/{symbol}: empty response, not saving")
     out = RAW / vendor / f"{symbol}.parquet"
     out.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(out, index=False)

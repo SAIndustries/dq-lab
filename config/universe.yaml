@@ -28,3 +28,11 @@ crypto:
   binance: [BTCUSDT, ETHUSDT]
   coinbase: [BTC-USD, ETH-USD]
   kraken: [XBTUSD, ETHUSD]
+symbol_map:
+  BTCUSDT: BTC-USD
+  ETHUSDT: ETH-USD
+  XBTUSD: BTC-USD
+price_basis:
+  yfinance: split_adjusted
+  tiingo: raw
+  stooq: split_and_dividend_adjusted
